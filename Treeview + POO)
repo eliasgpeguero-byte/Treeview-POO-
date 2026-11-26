@@ -1,0 +1,118 @@
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+
+
+ 
+class Tarea:
+    def __init__(self, id, titulo, descripcion):
+        self.id = id
+        self.titulo = titulo
+        self.descripcion = descripcion
+
+
+class TareaRepository:
+    def __init__(self):
+        self.tareas = []
+        self.siguiente_id = 1
+
+    def obtener_todas(self):
+        return self.tareas
+
+    def crear(self, titulo, descripcion):
+        nueva = Tarea(self.siguiente_id, titulo, descripcion)
+        self.tareas.append(nueva)
+        self.siguiente_id = self.siguiente_id + 1
+        return nueva
+
+
+class TareaService:
+    def __init__(self, repository):
+        self.repository = repository
+
+    def obtener_todas(self):
+        return self.repository.obtener_todas()
+
+    def crear(self, titulo, descripcion):
+        # Si algún campo está vacío, mostramos un error
+        if titulo == "" or descripcion == "":
+            raise ValueError("Debe llenar todos los campos")
+
+        return self.repository.crear(titulo, descripcion)
+
+
+class AppWindow:
+    def __init__(self, service):
+        self.service = service
+
+        self.ventana = tk.Tk()
+        self.ventana.title("Gestor de tareas")
+
+        # Campo del título
+        tk.Label(self.ventana, text="Título:").pack()
+        self.entrada_titulo = tk.Entry(self.ventana, width=40)
+        self.entrada_titulo.pack()
+
+        # Campo de la descripción
+        tk.Label(self.ventana, text="Descripción:").pack()
+        self.entrada_descripcion = tk.Entry(self.ventana, width=40)
+        self.entrada_descripcion.pack()
+
+        # Botón para crear
+        tk.Button(self.ventana, text="Crear tarea",
+                  command=self.crear_tarea).pack(pady=10)
+
+        # Tabla (Treeview)
+        self.tabla = ttk.Treeview(
+            self.ventana, columns=("id", "titulo", "descripcion"), show="headings")
+
+        self.tabla.column("id", width=50, anchor="center")
+        self.tabla.column("titulo", width=150, anchor="center")
+        self.tabla.column("descripcion", width=250, anchor="center")
+
+        self.tabla.heading("id", text="ID")
+        self.tabla.heading("titulo", text="Título")
+        self.tabla.heading("descripcion", text="Descripción")
+
+        self.tabla.pack(padx=10, pady=10)
+
+        # Cargamos las tareas al abrir la ventana
+        self.cargar_tareas()
+
+    def cargar_tareas(self):
+        # Primero borramos lo que hay en la tabla
+        for fila in self.tabla.get_children():
+            self.tabla.delete(fila)
+
+        # Luego pedimos las tareas al service y las agregamos
+        tareas = self.service.obtener_todas()
+        for tarea in tareas:
+            self.tabla.insert("", "end", values=(
+                tarea.id, tarea.titulo, tarea.descripcion))
+
+    def crear_tarea(self):
+        # Capturamos lo que escribió el usuario
+        titulo = self.entrada_titulo.get()
+        descripcion = self.entrada_descripcion.get()
+
+        try:
+            self.service.crear(titulo, descripcion)
+        except ValueError as error:
+            messagebox.showwarning("Aviso", str(error))
+            return
+
+        # Limpiamos los campos
+        self.entrada_titulo.delete(0, tk.END)
+        self.entrada_descripcion.delete(0, tk.END)
+
+        # Actualizamos la tabla
+        self.cargar_tareas()
+
+    def iniciar(self):
+        self.ventana.mainloop()
+
+ 
+repository = TareaRepository()
+service = TareaService(repository)
+app = AppWindow(service)
+app.iniciar()
